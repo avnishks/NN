@@ -1,0 +1,186 @@
+Neural Networks
+========================================================
+
+```{r}
+library(MASS)
+library(ISLR)
+P1s1 <- read.csv('/home/avnish/R/my_data/Dataset2/Exp 1 Data - 20 Subjects/P_12_s1data.csv', header=TRUE)#stringsAsFactors = FALSE
+#modify data
+#P1s1 <- P1s1[-which(P1s1$Action == ""), ] #only action rows=""
+#P1s1 <- P1s1[-which(P1s1$ScoreChange !=0), ]
+P1s1<- data.frame(P1s1, check.rows=TRUE)
+P1s1<-P1s1[,-29] #delete 'Closest_Control' column
+P1s1<-P1s1[P1s1$Action =="", ] #delete all non-empty 'Action' column
+#column 'eventType', 'MsgIn', 'msgOut', 'Action':blank-->"inf" {type=string}
+P1s1$eventType<-as.character(P1s1$eventType)
+P1s1$eventType[P1s1$eventType ==""]<-"inf"
+P1s1$eventType<-as.factor(P1s1$eventType)
+
+P1s1$MsgIn<-as.character(P1s1$MsgIn)
+P1s1$MsgIn[P1s1$MsgIn ==""]<-"inf"
+P1s1$MsgIn<-as.factor(P1s1$MsgIn)
+
+P1s1$MsgOut<-as.character(P1s1$MsgOut)
+P1s1$MsgOut[P1s1$MsgOut ==""]<-"inf"
+P1s1$MsgOut<-as.factor(P1s1$MsgOut)
+
+P1s1$Action<-as.character(P1s1$Action)
+P1s1$Action[P1s1$Action ==""]<-"inf"
+P1s1$Action<-as.factor(P1s1$Action)
+
+#column 'ScoreChange':blank/NA-->"-123"; 0 remains 0 {type=numeric}
+P1s1$ScoreChange[P1s1$ScoreChange ==""]<- 123 #just in case there are blanks
+P1s1$ScoreChange[is.na(P1s1$ScoreChange)]<- 123
+#check
+#P1s1$ScoreChange<-as.factor(P1s1$ScoreChange)
+#levels(P1s1$ScoreChange)
+
+#rest of the missing/NA data must be NaN
+#for <NA> type, factor-->character-->(NA-->NaN)-->factor
+for (i in names(P1s1)[c(28,41,42,50,52,53,61,63,64,72,74,80,81,82,88,89,90,96,97,98,104,105,106,112,113,114,120,121,122,128,129,130,136,137,138,144,145,146,152,154,154,160,161,162,168,169,170,176,177,178,184,185,186,192,193)]){
+  P1s1[[i]]<-as.character(P1s1[[i]])
+  P1s1[[i]][is.na(P1s1[[i]])]<-NaN
+  P1s1[[i]][P1s1[[i]]==""]<-NaN
+  P1s1[[i]]<-as.factor(P1s1[[i]])
+  }
+
+#rest(numeric class) of the NA data
+P1s1[is.na(P1s1)]<-NaN
+P1s1[P1s1==""]<-NaN
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#head(P1s1)
+p1s1<- data.frame(P1s1, check.rows=TRUE)
+#required data columns
+p1s1<-p1s1[,c(1,3, 5:9, 13:15, 26:28, 30:41, 47, 49, 58, 60, 69, 71)]
+p1s1<-p1s1[,colSums(is.na(p1s1))<nrow(p1s1)] #remove column with all NA
+p1s1<-p1s1[complete.cases(p1s1),] #remove rows with NA
+#head(p1s1)
+#only block 0 (planning)
+p1s1b0<-p1s1[p1s1$missionTime =='0:00', ]
+#b<-p1s1[, c("p1s1$RtPupilDiameter", "p1s1$LtPupilDiameter", "p1s1$RtFILTPupilDiam","p1s1$LtFILTPupilDiam")]
+p1s1$tIndex<-seq(0,(1/60)*(nrow(p1s1)-1),1/60)
+
+
+library(rgl)
+#plot3d(p1s1b0$SE_HeadPosX, p1s1b0$SE_HeadPosY, p1s1b0$SE_HeadPosY, col=c("red","blue","green")[p1s1b0$Difficulty])
+
+plot3d(p1s1$SE_HeadPosX, p1s1$SE_HeadPosY, p1s1$SE_HeadPosY, col=c("red","blue","green")[p1s1$Difficulty])
+plot(p1s1$SE_HeadPosX, p1s1$SE_HeadPosY, pch=1, col=c("red","blue","green")[p1s1$Difficulty])
+plot(p1s1$RtEyeLidOpening, p1s1$LtEyeLidOpening, pch=1, col=c("red","blue","green")[p1s1$Difficulty])#20 for solid pt.
+plot(p1s1$RtPupilDiameter, p1s1$LtPupilDiameter, pch=1, col=c("red","blue","green")[p1s1$Difficulty])
+
+#plot data based on Q value
+#p1s1$RtEyeLidOpeningQB<-as.factor(p1s1$RtEyeLidOpeningQ<0.5)
+#plot(p1s1$tIndex,  p1s1$RtEyeLidOpening,pch=20, col=c("red","blue")[as.factor(p1s1$RtEyeLidOpeningQB)])
+
+#legend('topright', legend = levels(p1s1$RtEyeLidOpening), col = 1:2, cex = 0.8, pch = 1)
+
+plot.ts(p1s1$RtEyeLidOpening)
+plot.ts(p1s1$LtEyeLidOpening)
+plot.ts(p1s1$SE_HeadPosX)
+plot.ts(p1s1$SE_HeadPosY)
+plot.ts(p1s1$SE_HeadPosZ)
+plot.ts(p1s1$RtPupilDiameter)
+plot.ts(p1s1$LtPupilDiameter)
+plot.ts(p1s1$RtFILTPupilDiam)
+plot(decompose(p1s1$LtFILTPupilDiam))
+
+#Q values
+summary(p1s1$LtPupilDiameterQ<0.5)
+
+#FFT
+library(stats)
+temp<-fft(p1s1b0$RtFILTPupilDiam)
+# plot.frequency.spectrum(temp)
+
+  ##################################################
+#FILTERS
+library(zoo)
+require(ggplot2)
+
+#Convert clock time to numeric, since 1/1/1970
+#p1s1b0$clockTime<-gsub("[/ : -]", "", p1s1b0$clockTime, perl=TRUE)
+p1s1b0$clockTime<-as.numeric(as.POSIXct(p1s1b0$clockTime, format="%m/%d/%Y  %H:%M"))
+p1s1b0$clockTime<-p1s1b0$clockTime-p1s1b0$clockTime[1]
+a<-p1s1[ , c('clockTime', 'SE_HeadPosX')]
+a$Difficulty<-p1s1$Difficulty
+a$SE_HeadPosY<-p1s1$SE_HeadPosY
+
+#running avg. in new row
+#a$runningAv<-rollmean(a$SE_HeadPosX, 3, fill=list(NA,NULL,NA))
+#ggplot(a, aes(x=a$clockTime, y=a$SE_HeadPosX)) + geom_line() + xlab("") + ylab("Head position")
+a$tIndex<-seq(0,(1/60)*(nrow(a)-1),1/60)
+#ts.plot(a$runningAv, col=c("red","blue","green")[a$Difficulty])
+a$SE_HeadVelX<-NA
+a$SE_HeadVelY<-NA
+for(i in 2:(nrow(a)-1)){
+  a$SE_HeadVelX[i]<-(a$SE_HeadPosX[i]-a$SE_HeadPosX[i-1])/(a$tIndex[i]-a$tIndex[i-1])
+  a$SE_HeadVelY[i]<-(a$SE_HeadPosY[i]-a$SE_HeadPosY[i-1])/(a$tIndex[i]-a$tIndex[i-1])
+}
+plot(a$SE_HeadVelX, a$SE_HeadVelY,pch=20, col=c("red","blue", "green")[a$Difficulty])
+plot(a$tIndex, a$SE_HeadVelX,pch=20, col=c("red","blue", "green")[a$Difficulty])
+plot(a$tIndex, a$SE_HeadVelY,pch=20, col=c("red","blue", "green")[a$Difficulty])
+############################################
+#More than one plots
+require(ggplot2)
+ggplot(a, aes(x=a$tIndex)) +                    
+  geom_line(aes(y=a$SE_HeadPosX), colour="red") +  
+  geom_line(aes(y=a$runningAv), colour="green")  
+
+
+df1<-p1s1[,c('Difficulty', 'RtEyeLidOpening', 'LtEyeLidOpening')]
+r<-lda(formula=df1$Difficulty ~ ., data=df1, scale=TRUE, cv=TRUE)
+prop.r = r$svd^2/sum(r$svd^2)
+# Assess the accuracy of the prediction
+# percent correct for each category of 'Difficulty'
+#ct<- table(df1$Difficulty, r$class)
+#diag(prop.table(ct,1))
+#total percentage correct
+#sum(diag(prop.table(ct)))
+#dim(r$class)
+#r$prior
+#r$counts
+#r$means
+#r$scaling
+#r$svd
+
+
+require(ggplot2)
+require(scales)
+require(gridExtra)
+plda <- predict(object = r, newdata = df1)
+dataset = data.frame(Difficulty = df1[,"Difficulty"], lda = plda$x)
+p1 <- ggplot(dataset) + geom_point(aes(lda.LD1, lda.LD2, colour = Difficulty, shape = Difficulty), size = 2.5) + labs(x = paste("LD1 (", percent(prop.r[1]), ")", sep=""), y = paste("LD2 (", percent(prop.r[2]), ")", sep=""))
+#plot visualization
+p1
+
+plot(df1)
+
+#quadratic
+rQuad<-qda(formula=df1$Difficulty ~ ., data=df1, scale=TRUE, cv=TRUE)
+rQuad<-data.frame(rQuad)
+plot(rQuad)
+prop.rQuad = rQuad$svd^2/sum(rQuad$svd^2)
+pqda <- predict(object = rQuad, newdata = df1)
+dataset = data.frame(Difficulty = df1[,"Difficulty"], qda = pqda$x)
+p1 <- ggplot(dataset) + geom_point(aes(qda.LD1, lda.LD2, colour = Difficulty, shape = Difficulty), size = 2.5) + labs(x = paste("LD1 (", percent(prop.r[1]), ")", sep=""), y = paste("LD2 (", percent(prop.r[2]), ")", sep=""))
+#plot visualization
+p1
+
+# Exploratory Graph for LDA or QDA
+library(klaR)
+partimat(df1~.,data=df1,method="lda") 
+
+
+
+
+```
+
+You can also embed plots, for example:
+
+```{r fig.width=7, fig.height=6}
+plot(cars)
+```
+
